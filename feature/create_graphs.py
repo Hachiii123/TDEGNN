@@ -36,7 +36,7 @@ def create_graph(src,dis,device):
 
 def get_adj(pro_ids):
     adjs = []
-    save_files_dir = '/home/lichangyong/Documents/zmx/Graph_fusion/Datasets/intermediate_files/'
+    save_files_dir = 'xxxx'
     fpath = save_files_dir +'Train_Test129/'
     adj_type = 'adj_SC_17'
     for i in pro_ids:
@@ -50,14 +50,14 @@ def get_adj(pro_ids):
 # use AlphaFold2 predicted structures to construct adj of protein graphs
 def get_adj_predicted(pro_ids):
    adjs = []
-   save_files_dir = '/home/duying/EGPDI/data/'
+   save_files_dir = '/home/duying/TDEGNN/data/'
    fpath = save_files_dir +'AF2_adj_predicted/train_test129/'
    adj_type = 'adj_SC_17_predicted'
    for i in pro_ids:
        #if i == '4ne1_p':
        #    i = '4ne1_P'
        file = fpath + adj_type + '/{}.pkl'.format(i)
-       adj_load = open(file, 'rb'
+       adj_load = open(file, 'rb')
        adj = pickle.load(adj_load)
        adjs.append(adj)
 
@@ -67,7 +67,7 @@ def get_adj_predicted(pro_ids):
 # use AlphaFold3 predicted structures to construct adj of protein graphs    
 # def get_adj_predicted(pro_ids):
 #     adjs = []
-#     save_files_dir = '/home/duying/EGPDI/data/'
+#     save_files_dir = '/home/duying/TDEGNN/data/'
 #     fpath = save_files_dir + 'AF3_adj_predicted/train_test129/'
 #     adj_type = 'adj_SC_17_predicted'
 #     for i in pro_ids:

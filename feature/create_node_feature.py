@@ -18,16 +18,15 @@ def one_hot_encode(sequence):
         encoded_sequence[i, aa_to_int[aa]] = 1
     return encoded_sequence
 
-# 整合多种蛋白质节点特征，包括：
-# 1.序列编码：one-hot 编码 ,20 dim
-# 2.预训练嵌入：ESM2-t33(1280 dim)/ESM2-t48(5210 dim), ProtTrans 1024 dim
-# 3.残基特征：PSSM,AF,DSSP 71 dim
-# 4.残基拓扑特征：140 dim
-# 5.标签：蛋白质的标注信息（FASTA文件第三行的01字符串，表示是否是结合位点）
+# Integrate multiple types of protein node features, including:
+# 1. Sequence encoding: one-hot encoding, 20 dimensions
+# 2. Pretrained embeddings: ESM2-t33 (1280 dim) / ESM2-t48 (5210 dim), ProtTrans 1024 dim
+# 3. Residue features: PSSM, AF, DSSP, 71 dimensions
+# 4. Residue topological features: 140 dimensions
+# 5. Labels: protein annotation information (the 01 string in the third line of the FASTA file, indicating whether it is a binding site)
 def create_features(query_ids, all_702_path, train_path, test_path, pkl_path, topo_path,   
-                    esm2_33_path, ProtTrans_path):  # 新增 topo_path
+                    esm2_33_path, ProtTrans_path):  
 
-    # 1.加载蛋白质 ID,序列，标签
     with open(train_path,'r') as f:
         train_text = f.readlines()
         for i in range(0, len(train_text), 3):
@@ -50,68 +49,54 @@ def create_features(query_ids, all_702_path, train_path, test_path, pkl_path, to
             Query_ids.append(query_id)
             query_seqs.append(query_seq)
 
-    # 2.加载 one-hot 向量（20 dim）,对 train_573 和 test_129 生成 one-hot 编码
-    #query_seqs_702 = []
-    #with open(all_702_path, 'r') as f1:
-    #    text_702 = f1.readlines()
-    #    for i in range(1, len(text_702), 3):      
-    #        query_seq_702 = text_702[i].strip()
-    #        query_seqs_702.append(query_seq_702)
-    #encoded_proteins = [one_hot_encode(sequence) for sequence in query_seqs_702]
-
-
-    
-    # 3.加载残基特征(71 dim)：PSSM,AF,DSSP
     PDNA_residue_load=open(pkl_path,'rb')
     PDNA_residue=pickle.load(PDNA_residue_load)
 
-
-    # 4.加载残基拓扑特征(140 dim)            
-    # topo_features = []
-    # paths_topo = []
-    # for pid in query_ids:
-    #     file_path = os.path.join(topo_path, f"{pid}_topo.pt")
-    #     paths_topo.append(file_path)
-    # for file_path in paths_topo:
-    #     if os.path.exists(file_path):
-    #         topo_feature = torch.load(file_path, map_location='cpu').numpy()
-    #         topo_features.append(topo_feature)
-    #     else:
-    #         print(f"Warning: Topo feature not found for {file_path}")
-    #         # 创建零填充矩阵（需知道序列长度）
-    #         seq_len = len(seqanno[os.path.basename(file_path).split('_')[0]]['seq'])
-    #         topo_features.append(np.zeros((seq_len, 140)))  # 140是拓扑特征维度
-
-    # 4.加载经过噪声扰动后的残基拓扑特征(140 dim) 
+           
     topo_features = []
     paths_topo = []
-    for pid in query_ids[573:]:
-        file_path = os.path.join(topo_path, f"{pid}_noise0.5_topo.pt")
+    for pid in query_ids:
+        file_path = os.path.join(topo_path, f"{pid}_topo.pt")
         paths_topo.append(file_path)
     for file_path in paths_topo:
         if os.path.exists(file_path):
-            loaded_data = torch.load(file_path, map_location='cpu')
-
-            if isinstance(loaded_data, dict):  # 如果是包含特征的字典
-                feature_array = loaded_data['features'].numpy()
-            else:  # 如果是直接的特征张量
-                feature_array = loaded_data.numpy() if torch.is_tensor(loaded_data) else loaded_data
-            
-            # 维度检查
-            if feature_array.shape[1] != 140:
-                raise ValueError(f"特征维度应为140，但得到{feature_array.shape[1]}")
-            
-            topo_features.append(feature_array)
-        
+            topo_feature = torch.load(file_path, map_location='cpu').numpy()
+            topo_features.append(topo_feature)
         else:
             print(f"Warning: Topo feature not found for {file_path}")
-            # 创建零填充矩阵（需知道序列长度）
-            pid = os.path.basename(file_path).split('_noise')[0]
-            seq_len = len(seqanno.get(pid, {}).get('seq', '')) or 100
-            topo_features.append(np.zeros((seq_len, 140)))  # 140是拓扑特征维度
+            
+            seq_len = len(seqanno[os.path.basename(file_path).split('_')[0]]['seq'])
+            topo_features.append(np.zeros((seq_len, 140))) 
+
+
+    # topo_features = []
+    # paths_topo = []
+    # for pid in query_ids[573:]:
+    #     file_path = os.path.join(topo_path, f"{pid}_noise0.5_topo.pt")
+    #     paths_topo.append(file_path)
+    # for file_path in paths_topo:
+    #     if os.path.exists(file_path):
+    #         loaded_data = torch.load(file_path, map_location='cpu')
+
+    #         if isinstance(loaded_data, dict): 
+    #             feature_array = loaded_data['features'].numpy()
+    #         else:  
+    #             feature_array = loaded_data.numpy() if torch.is_tensor(loaded_data) else loaded_data
+            
+    #   
+    #         if feature_array.shape[1] != 140:
+    #             raise ValueError(f"feature dimension error，current dimension{feature_array.shape[1]}")
+            
+    #         topo_features.append(feature_array)
+        
+    #     else:
+    #         print(f"Warning: Topo feature not found for {file_path}")
+    #         
+    #         pid = os.path.basename(file_path).split('_noise')[0]
+    #         seq_len = len(seqanno.get(pid, {}).get('seq', '')) or 100
+    #         topo_features.append(np.zeros((seq_len, 140)))  
              
 
-    # 5.加载 esm2-t33 特征（1280 dim）
     ESM2_33 = []
     paths = []
     for i in query_ids:
@@ -121,19 +106,7 @@ def create_features(query_ids, all_702_path, train_path, test_path, pkl_path, to
         ESM2_33_embedding = np.load(file_path, allow_pickle=True)
         ESM2_33.append(ESM2_33_embedding)
 
-    # 5.加载 esm2-t48 特征（5120 dim）
-    # ESM2_5120 = []
-    # paths_5120 = []
-    # for i in query_ids:
-        # file_paths = esm2_5120_path + '{}'.format(i) + '.rep_5120.npy'  
-    #   file_paths = esm2_5120_path + '{}'.format(i) + '.npy'
-    #   paths_5120.append(file_paths)
-    # for file_path in paths_5120:
-        # print(file_path)
-    #   ESM2_5120_embedding = np.load(file_path,allow_pickle=True)
-    #   ESM2_5120.append(ESM2_5120_embedding)
 
-    # 6.加载 ProtTrans 特征（1024 dim）
     ProTrans_1024=[]
     paths_1024 = []
     for i in query_ids:
@@ -146,33 +119,17 @@ def create_features(query_ids, all_702_path, train_path, test_path, pkl_path, to
     # load residue features-71dim and labels
     data = {}
     for i in query_ids:
-        # print("当前蛋白质：", i)
         data[i] = []
         residues = PDNA_residue[i]
         labels = seqanno[i]['anno']
         data[i].append({'features': residues, 'label': labels})
-
 
     feature1=[]
     feature2=[]
     feature3=[]
     feature4 = []
     protein_labels=[]
-
-    #for i in query_ids:
-    #    residues=data[i]
-    #    feature1.append(residues[0]['features'])
-    #    protein_labels.append((residues[0]['label']))
-    #    seq = seqanno[i]['seq']
-    #    onehot = one_hot_encode(seq)
-    #    feature2.append(onehot)
-
-    #for j in range(len(query_ids)):
-    #    #feature2.append(encoded_proteins[j])   # 20 dim one-hot
-    #    feature3.append(ESM2_33[j])            # 1280 dim esm2_t33
-    #    # feature3.append(ESM2_5120[j])        # 5120 dim esm2_5120
-    #    feature4.append(ProTrans_1024[j])      # 1024 dim protrans
-    
+  
     for i,pid in enumerate(query_ids):
         residues = data[pid]
         feature1.append(residues[0]['features'])
@@ -185,10 +142,6 @@ def create_features(query_ids, all_702_path, train_path, test_path, pkl_path, to
         feature3.append(ESM2_33[i])                                # esm2_t33
         feature4.append(ProTrans_1024[i])  
                 
-        
-          
-    # 加入拓扑特征后的节点特征构建
-    # 构建node_features时加入拓扑特征
     node_features = {}
     for i, pid in enumerate(query_ids):
         node_features[pid] = {
@@ -246,29 +199,24 @@ def create_dataset(query_ids,train_path, test_path,all_702_path, pkl_path,topo_p
 
     node_features = create_features(query_ids,all_702_path,train_path,test_path,pkl_path,topo_path,esm2_33_path,ProtTrans_path)
 
-    uncorrect_prot=[]  # 特征维度不正确的蛋白质
+    uncorrect_prot=[] 
     
     for i in query_ids:
         protein = node_features[i]
         mat1 = (protein['residue_fea'])
         mat2 = (protein['one-hot'])
-        #mat3 = protein['topo_fea']   # 新增拓扑特征
+        mat3 = protein['topo_fea']  
         mat4 = (protein['esm2_33'])
         mat5 = (protein['prottrans_1024'])
 
-        #mat3 = torch.Tensor(mat3)
+        mat3 = torch.Tensor(mat3)
         mat4 = torch.Tensor(mat4)
         mat4 = torch.squeeze(mat4)
         mat5 = torch.Tensor(mat5)
         mat5 = torch.squeeze(mat5)
-
-
-
-        # 报错：np.hstack()时行数不匹配，检查报错的蛋白质的特征维度
-        # 对特征维度不正确的蛋白质，重新提取esm2_t33的特征？        
-        if mat4.shape[1] != 1280:
-            uncorrect_prot.append(i)
-        
+       
+        # if mat4.shape[1] != 1280:
+        #     uncorrect_prot.append(i)
         
         if residue == True and one_hot == True and topo == True and esm2_33 == True and prottrans == True:      # all embeddings
             features[i] = np.hstack((mat1, mat2, mat3, mat4, mat5))
@@ -283,11 +231,6 @@ def create_dataset(query_ids,train_path, test_path,all_702_path, pkl_path,topo_p
             features[i] = np.hstack((mat4, mat5))
             print("Training TDEGNN_only_pLM")
 
-        
-
-        # 水平拼接所有特征
-        # features[i] = np.hstack((mat1, mat2, mat3, mat4, mat5))
-
         labels = protein['label']
         y.append(labels)
 
@@ -296,7 +239,6 @@ def create_dataset(query_ids,train_path, test_path,all_702_path, pkl_path,topo_p
 
     for key in query_ids:
         X.append(features[key])
-        
                     
 
     return X,y

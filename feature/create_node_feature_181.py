@@ -20,7 +20,7 @@ def one_hot_encode(sequence):
 
 
 def create_features(query_ids,test_path,pkl_path,topo_path,esm2_5120_path,ProtTrans_path):
-    # 1.加载 one-hot 向量
+    # 1.loading one-hot 
     with open(test_path, 'r') as f:
         train_text = f.readlines()
         for i in range(0, len(train_text), 3):
@@ -36,7 +36,7 @@ def create_features(query_ids,test_path,pkl_path,topo_path,esm2_5120_path,ProtTr
             Query_ids.append(query_id)
             query_seqs.append(query_seq)
 
-    # 2.加载 one-hot 向量（20 dim）,对 train_573 和 test_129 生成 one-hot 编码
+    # 2.generating one-hot encoding
     query_seqs_181 = []
     with open(test_path, 'r') as f1:
         text_181 = f1.readlines()
@@ -46,11 +46,11 @@ def create_features(query_ids,test_path,pkl_path,topo_path,esm2_5120_path,ProtTr
             query_seqs_181.append(query_seq_181)
     encoded_proteins = [one_hot_encode(sequence) for sequence in query_seqs_181]
                         
-    # 3.加载残基特征
+    # 3.loading residue features
     PDNA_residue_load=open(pkl_path,'rb')
     PDNA_residue=pickle.load(PDNA_residue_load)
     
-    # 4.加载残基拓扑特征(140 dim)
+    # 4.loading residue features(140 dim)
     topo_features = []
     paths_topo = []
     for pid in query_ids:
@@ -62,35 +62,34 @@ def create_features(query_ids,test_path,pkl_path,topo_path,esm2_5120_path,ProtTr
             topo_features.append(topo_feature)
         else:
             print(f"Warning: Topo feature not found for {file_path}")
-            # 创建零填充矩阵（需知道序列长度）
             seq_len = len(seqanno[os.path.basename(file_path).split('_')[0]]['seq'])
-            topo_features.append(np.zeros((seq_len, 140)))  # 140是拓扑特征维度
+            topo_features.append(np.zeros((seq_len, 140)))  
 
 
 
-    # 5.加载 esm2-t33 特征（1280 dim）
-    # ESM2_33 = []
-    # paths_esm = []
-    # for i in query_ids:
-    #    file_paths = esm2_33_path + '{}'.format(i) + '.npy'
-    #    paths_esm.append(file_paths)
-    # for file_path in paths_esm:
-    #    ESM2_33_embedding = np.load(file_path)
-    #    ESM2_33.append(ESM2_33_embedding)
+    # 5.loading esm2-t33 embedding（1280 dim）
+    ESM2_33 = []
+    paths_esm = []
+    for i in query_ids:
+       file_paths = esm2_33_path + '{}'.format(i) + '.npy'
+       paths_esm.append(file_paths)
+    for file_path in paths_esm:
+       ESM2_33_embedding = np.load(file_path)
+       ESM2_33.append(ESM2_33_embedding)
     
-    # 5.加载 esm2-5120 特征（5120 dim）   
-    ESM2_5120 = []
-    paths_5120 = []
-    for i in query_ids:  
-        file_paths = esm2_5120_path + '{}'.format(i) + '.npy'
-        paths_5120.append(file_paths)
-    for file_path in paths_5120:
-        # print(file_path)
-        ESM2_5120_embedding = np.load(file_path,allow_pickle=True)
-        ESM2_5120.append(ESM2_5120_embedding)
+    # 5.loading esm2-5120 embeddings（5120 dim）   
+    # ESM2_5120 = []
+    # paths_5120 = []
+    # for i in query_ids:  
+    #     file_paths = esm2_5120_path + '{}'.format(i) + '.npy'
+    #     paths_5120.append(file_paths)
+    # for file_path in paths_5120:
+    #     # print(file_path)
+    #     ESM2_5120_embedding = np.load(file_path,allow_pickle=True)
+    #     ESM2_5120.append(ESM2_5120_embedding)
 
 
-    # 6.加载 ProtTrans 特征
+    # 6.loading ProtTrans embedding
     ProTrans_1024=[]
     paths_1024 = []
     for i in query_ids:
@@ -101,7 +100,6 @@ def create_features(query_ids,test_path,pkl_path,topo_path,esm2_5120_path,ProtTr
     for file_path in paths_1024:
         ProTrans_1024_embedding = np.load(file_path, allow_pickle=True)
         ProTrans_1024.append(ProTrans_1024_embedding)
-
 
     data = {}
     for i in query_ids:
@@ -128,15 +126,15 @@ def create_features(query_ids,test_path,pkl_path,topo_path,esm2_5120_path,ProtTr
         protein_labels.append((residues[0]['label']))
 
     for j in range(len(query_ids)):
-        if 0 <= j < len(encoded_proteins):  # 确保 j 在有效范围内
+        if 0 <= j < len(encoded_proteins):  
             feature2.append(encoded_proteins[j])
         else:
             print(len(query_ids))
             print(len(encoded_proteins))
             print("警告：索引 j 超出了 encoded_proteins 的范围。")
 
-        feature3.append(ESM2_5120[j])    # 5120 dim bert_5120
-        # feature3.append(ESM2_33[j])
+        # feature3.append(ESM2_5120[j])    # 5120 dim bert_5120
+        feature3.append(ESM2_33[j])
         feature4.append(ProTrans_1024[j])  # 1024 dim protrans
         # feature6.append(MSA_256[j])  # 256 dim MSA
 
@@ -214,14 +212,12 @@ def create_dataset(query_ids,test_path,pkl_path,topo_path,esm2_33_path,ProtTrans
         mat5 = torch.Tensor(mat5)
         mat5 = torch.squeeze(mat5)
 
+        # print("Protein:", i)
+        # print("mat1 shape:", mat1.shape)
+        # print("mat2 shape:", mat2.shape)
+        # print("mat4 shape:", mat4.shape)  
+        # print("mat5 shape:", mat5.shape)
 
-        print("当前蛋白质ID:", i)
-        print("mat1 shape:", mat1.shape)
-        print("mat2 shape:", mat2.shape)
-        print("mat4 shape:", mat4.shape)  
-        print("mat5 shape:", mat5.shape)
-
-        # 水平拼接所有特征
         features[i] = np.hstack((mat1, mat2, mat3, mat4, mat5))
 
         labels = protein['label']

@@ -36,7 +36,7 @@ def get_adj_predicted(pro_ids):
 
    adjs = []
    #  create adj_SC_17 based on predicted structure
-   save_files_dir = '/home/duying/EGPDI/data/dataset_dir_181/'
+   save_files_dir = '/home/duying/TDEGNN/data/dataset_dir_181/'
    fpath = save_files_dir +'Test_181/'
    adj_type = 'adj_SC_17_predicted'
    for i in pro_ids:
@@ -54,10 +54,10 @@ def get_adj_predicted(pro_ids):
 
     adjs = []
     #  create adj_SC_17 based on predicted structure
-    #save_files_dir = '/home/duying/EGPDI/data/dataset_dir_181/'
+    #save_files_dir = '/home/duying/TDEGNN/data/dataset_dir_181/'
     #fpath = save_files_dir +'Test_181/'
     
-    save_files_dir = '/home/duying/EGPDI/data/'
+    save_files_dir = '/home/duying/TDEGNN/data/'
     fpath = save_files_dir + 'AF3_adj_predicted/test181/'
     
     adj_type = 'adj_SC_17_predicted'

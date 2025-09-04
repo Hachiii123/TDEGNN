@@ -13,7 +13,7 @@ Protein-DNA interactions are fundamental to diverse biological processes, and ac
 ## Preparation
 ### Environment Setup
 ```python 
-   git clone https://github.com/MiJia-ID/USPDB.git
+   https://github.com/Hachiii123/TDEGNN.git
    conda env create -f environment.yml
 ```
 

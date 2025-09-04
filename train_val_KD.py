@@ -23,9 +23,9 @@ warnings.filterwarnings("ignore")
 seed_value = 1995
 th=17
 
-cuda_index = 1  # 这里可以设置为 0, 1, 2, ... 对应不同的 GPU
+cuda_index = 1  
 
-# 检查是否有足够的 GPU 设备
+
 if torch.cuda.is_available() and cuda_index < torch.cuda.device_count():
     device = torch.device(f"cuda:{cuda_index}")
 else:
@@ -33,8 +33,8 @@ else:
     print("CUDA is not available or the specified index is out of range. Falling back to CPU.")
 
 
-# 模型保存路径
-Model_Path = '/home/duying/EGPDI/models_TDEGNN_noTopo'
+
+Model_Path = '/home/duying/TDEGNN/models_TDEGNN_noTopo'
 
 features = []
 labels = []
@@ -51,7 +51,7 @@ class CustomDataset(Dataset):
         return self.features[index], self.labels[index]
 
 
-root_dir = '/home/duying/EGPDI/data/'
+root_dir = '/home/duying/TDEGNN/data/'
 train_path= root_dir + 'DNA-573_Train.txt'
 test_path= root_dir + 'DNA-129_Test.txt'
 all_702_path = root_dir +  'DNA-702.txt'
@@ -72,17 +72,15 @@ esm2_33_path = root_dir + 'ESM2_t33/'
 ProtTrans_path = root_dir + 'ProtTrans/'
 dis_path= root_dir + 'AF3_residue_feats/train_test129/PDNA_psepos_SC.pkl'
 
-
 query_ids = []
 
-#读取所有训练集的id
 with open(train_path, 'r') as f:
     train_text = f.readlines()
     for i in range(0, len(train_text), 3):
         query_id = train_text[i].strip()[1:]
         query_ids.append(query_id)
 
-# 训练时注释掉
+
 # with open(test_path, 'r') as f:
 #     train_text = f.readlines()
 #     for i in range(0, len(train_text), 3):
@@ -91,7 +89,6 @@ with open(train_path, 'r') as f:
 
 print(f"query_ids长度:",len(query_ids))
 
-# 创建数据集
 X,y = create_dataset(query_ids,train_path, test_path,all_702_path, pkl_path,topo_path,esm2_33_path,
                      ProtTrans_path,residue=True,one_hot=True,esm2_33=True,prottrans=True,topo=False)
 distance_matrixs=create_dis_matrix(dis_path,query_ids)
@@ -113,11 +110,10 @@ lamda=1.1
 alpha=0.1
 atten_time=8
 
-# 自蒸馏参数
-distill_temp = 4.0     # 蒸馏温度参数
-alpha_ce = 0.5         # 交叉熵损失权重
-alpha_kd = 0.5         # 知识蒸馏损失权重
-alpha_fd = 0.5         # 特征蒸馏损失权重
+distill_temp = 4.0     
+alpha_ce = 0.5         
+alpha_kd = 0.5         
+alpha_fd = 0.5         
 
 IDs = query_ids[:573]
 sequences = []
@@ -149,7 +145,6 @@ save_edgefeats_path = root_dir + 'AF3_Edge_feat/train_573/EdgeFeats_predicted_SC
 with open(save_edgefeats_path, 'rb') as f:
     efeats = pickle.load(f)
 
-# features = X_train，X_train = X[:573]，X 来自create_dataset
 print(len(IDs), len(sequences), len(labels), len(features), len(coors), len(adjs), len(graphs), len(efeats))
 
 
@@ -164,10 +159,10 @@ class dataSet(data.Dataset):
         self.sequences = dataframe['sequence'].values
         self.labels = dataframe['label'].values
         self.features = dataframe['features'].values
-        self.coors = dataframe['coors'].values     #坐标
-        self.graphs =  dataframe['graph'].values   #邻接构建的图
-        self.efeats = dataframe['efeats'].values   #边特征
-        self.adj = dataframe['adj'].values         #邻接
+        self.coors = dataframe['coors'].values     
+        self.graphs =  dataframe['graph'].values   
+        self.efeats = dataframe['efeats'].values   
+        self.adj = dataframe['adj'].values         
 
 
     def __getitem__(self,index):
@@ -197,31 +192,28 @@ def graph_collate(samples):
     return ID_batch, sequence_batch,label_batch, node_features_batch, graph_batch,efeat_batch,adj_batch,coors_batch
 
 
-# 知识蒸馏损失函数
+
 def kd_loss(student_logits, teacher_logits, temperature=4.0):
     """
-    计算知识蒸馏损失
-    outputs: 学生模型输出
-    teacher_outputs: 教师模型输出
-    temperature: 温度参数，用于软化概率分布
+    Calculate knowledge distillation loss
+    outputs: Student model output  
+    teacher_outputs: Teacher model output  
+    temperature: Temperature parameter, used for softening probability distribution
     """
     student_log_probs = F.log_softmax(student_logits / temperature, dim=-1)
     teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
     return F.kl_div(student_log_probs, teacher_probs, reduction='batchmean') * (temperature**2)
 
 
-# 特征蒸馏损失函数
 def feature_distillation_loss(student_features, teacher_features):
     """
-    计算特征蒸馏损失，使用MSE损失度量特征表示之间的差异
-    student_features: 学生模型特征
-    teacher_features: 教师模型特征
+    Calculate feature distillation loss using MSE loss to measure the difference between feature representations
+    student_features: Student model features
+    teacher_features: Teacher model features
     """
-    # 对特征进行归一化
     student_features_norm = F.normalize(student_features, p=2, dim=1)
     teacher_features_norm = F.normalize(teacher_features, p=2, dim=1)
     
-    # 计算MSE损失
     return F.mse_loss(student_features_norm, teacher_features_norm)
 
 
@@ -230,43 +222,19 @@ def train_one_epoch(model,data_loader):
     n = 0
     count_prot = 0
 
-    # 设置设备
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)  # 将模型移动到设备
+    model = model.to(device)  
 
-    # 添加ID-batch和sequence_batch
     for ID_batch, sequence_batch,label_batch, node_features_batch, graph_batch,efeat_batch,adj_batch,coors_batch in data_loader:
-        # 使用esm2-t33时，跳过 3cmu_A
-        if ID_batch == "3cmu_A":
-            print(f"跳过蛋白质 {ID_batch}")
-            continue
 
         model.optimizer.zero_grad()
 
-        # 将数据转换为张量
         node_features_batch = torch.tensor(node_features_batch)
         coors_batch = torch.tensor(coors_batch)
         adj_batch = adj_batch[0]
         y_true = label_batch[0]
         efeat_batch = efeat_batch[0]
 
-        #if torch.cuda.is_available():
-        #    node_features_batch = Variable(node_features_batch.cuda())
-        #    graph_batch = graph_batch.to(device)
-        #    efeat_batch = efeat_batch.to(device)
-        #    adj_batch = Variable(adj_batch.cuda())
-        #    coors_batch = Variable(coors_batch.cuda())
-        #    y_true = label_batch
-        #else:
-        #    node_features_batch = Variable(node_features_batch)
-        #    graph_batch = graph_batch
-        #    adj_batch = Variable(adj_batch)
-        #    coors_batch = Variable(coors_batch)
-        #    y_true = label_batch
-        #    efeat_batch = efeat_batch
-        
-        
-        # 移动到设备
         device = next(model.parameters()).device
         node_features_batch = Variable(node_features_batch.to(device))
         graph_batch = graph_batch.to(device)
@@ -275,7 +243,7 @@ def train_one_epoch(model,data_loader):
         coors_batch = Variable(coors_batch.to(device))
 
         count_prot+=1
-        if count_prot % 50 == 0:  # 每50个样本输出一次信息，避免过多输出
+        if count_prot % 50 == 0:  
             print(f"Sample {count_prot}:")
             print(f"ID: {ID_batch}")
             print('node_features', node_features_batch.shape)    
@@ -286,56 +254,41 @@ def train_one_epoch(model,data_loader):
             print('efeats', efeat_batch.shape) 
         
         
-
         try:
-            # 前向传播，获取多层预测结果和特征表示
             outputs, features = model(graph_batch, node_features_batch, coors_batch, adj_batch, efeat_batch)
 
-            # 解包输出，outputs[0]是最深层输出，outputs[1]和outputs[2]是浅层输出
             final_output, middle_output, shallow_output = outputs
             final_features, middle_features, shallow_features = features
             
-
-            # 转换为概率分布
             final_probs = torch.sigmoid(final_output)
             middle_probs = torch.sigmoid(middle_output)
             shallow_probs = torch.sigmoid(shallow_output)
 
-            # 准备标签
             labels = torch.tensor([int(l) for l in y_true], dtype=torch.float32, device=device)
-            assert labels.shape == final_output.shape, f"标签维度 {labels.shape} 与输出 {final_output.shape} 不一致"
+            assert labels.shape == final_output.shape, f"{labels.shape} and {final_output.shape} are inconsistent"
 
-            # 分别计算每层的监督损失
             final_ce_loss   = F.binary_cross_entropy_with_logits(final_output, labels)
             middle_ce_loss  = F.binary_cross_entropy_with_logits(middle_output, labels)
             shallow_ce_loss = F.binary_cross_entropy_with_logits(shallow_output, labels)
 
-            # 计算知识蒸馏损失 (从深层到浅层)
             middle_kd_loss = kd_loss(middle_output, final_output.detach(), temperature=distill_temp)
             shallow_kd_loss = kd_loss(shallow_output, final_output.detach(), temperature=distill_temp)
             
-            # 计算特征蒸馏损失
             middle_fd_loss = feature_distillation_loss(middle_features, final_features.detach())
             shallow_fd_loss = feature_distillation_loss(shallow_features, final_features.detach())
 
-            # 计算总损失
-            # 1. 最深层只有监督损失
             final_loss = final_ce_loss
-            
-            # 2. 中层结合监督损失、知识蒸馏损失和特征蒸馏损失
+
             middle_loss = alpha_ce * middle_ce_loss + alpha_kd * middle_kd_loss + alpha_fd * middle_fd_loss
             
-            # 3. 浅层结合监督损失、知识蒸馏损失和特征蒸馏损失
             shallow_loss = alpha_ce * shallow_ce_loss + alpha_kd * shallow_kd_loss + alpha_fd * shallow_fd_loss
             
-            # 总损失是所有层损失的加权和
             total_loss = final_loss + middle_loss + shallow_loss
         
         except Exception as e:
-            print(f"[跳过异常蛋白质] ID: {ID_batch} 报错: {e}")
+            print(f"[Skip anomalous proteins] ID: {ID_batch} error: {e}")
             continue
-        
-        # 反向传播和优化
+
         total_loss.backward()
         model.optimizer.step()
 
@@ -359,11 +312,6 @@ def evaluate(model,data_loader):
     pred_dict = []
 
     for ID_batch, sequence_batch,label_batch, node_features_batch, graph_batch,efeat_batch,adj_batch,coors_batch in data_loader:
-        
-        #print("当前蛋白质ID：",ID_batch)
-        if ID_batch == "3cmu_A":
-            print(f"跳过蛋白质 {ID_batch}")
-            continue
         try:    
             with torch.no_grad():
     
@@ -388,11 +336,9 @@ def evaluate(model,data_loader):
                     y_true = label_batch
                     efeat_batch = efeat_batch
     
-                # 只使用最终输出进行评估
                 outputs, _ = model(graph_batch, node_features_batch, coors_batch, adj_batch, efeat_batch)
-                y_pred = outputs[0]  # 使用最深层的输出作为最终预测
+                y_pred = outputs[0]  
                 
-                # 应用sigmoid激活函数获取概率
                 y_pred = torch.sigmoid(y_pred)
                 y_pred = torch.squeeze(y_pred)
     
@@ -412,7 +358,7 @@ def evaluate(model,data_loader):
                 n += 1
                 
         except Exception as e:
-            print(f"[跳过异常蛋白质] ID: {ID_batch}, 报错信息: {e}")
+            print(f"[Skip anomalous proteins] ID: {ID_batch}, error: {e}")
             continue     
 
     epoch_loss_avg = epoch_loss / n
@@ -482,7 +428,6 @@ def train_1(model,train_dataframe,valid_dataframe,fold = 0):
     valid_dataSet = dataSet(dataframe=valid_dataframe, adjs=adjs)
     valid_loader = torch.utils.data.DataLoader(valid_dataSet, batch_size=1, shuffle=True, collate_fn=graph_collate)
 
-    # 初始化最佳指标跟踪
     best_epoch = 0
     best_val_acc = 0
     best_val_spe = 0

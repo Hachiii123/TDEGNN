@@ -21,7 +21,6 @@ class MainModel(nn.Module):
                                  dropout=dr, lamda=lamda, alpha=alpha, variant=True, heads=1)
         
 
-        # 为每个EGNN层添加分类器，用于自蒸馏
         self.classifier1 = nn.Sequential(
             nn.Linear(nhidden, 128),
             nn.ReLU(),
@@ -46,24 +45,18 @@ class MainModel(nn.Module):
                 nn.Linear(128, 1)
             )
             self.proj_shallow = nn.Linear(512, 128)
-        
-        # GNN II 层
-        # self.rgn_gcn2 = RGN_GCN(nlayers=nlayers, nfeat=nfeats, nhidden=128, nclass=1,
-        #                         dropout=dr, lamda=lamda, alpha=alpha, variant=True, heads=1)
          
 
         self.criterion = nn.BCEWithLogitsLoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr, weight_decay=1e-16)
 
 
-    # G：蛋白质结构图，h：节点特征，x：节点坐标，efeats：边特征
     def forward(self, G, h, x, adj, efeats):
-        # 确保输入维度正确
+
         h = torch.squeeze(h)
         x = torch.squeeze(x)
         h = h.to(torch.float32)
 
-        # 通过3层EGNN
         fea_egnn1 = self.rgn_egnn1(G, h, x, efeats)
         fea_egnn2 = self.rgn_egnn2(G, fea_egnn1, x, efeats)
         fea_egnn3 = self.rgn_egnn3(G, fea_egnn2, x, efeats)
@@ -71,17 +64,11 @@ class MainModel(nn.Module):
         middle_proj = self.proj_middle(fea_egnn2)
         shallow_proj = self.proj_shallow(fea_egnn1)
 
-        
-        # GNC II 特征     
-        # fea2 = self.rgn_gcn2(h, adj)
-
-        # 每层分类器（蒸馏用）
         logit1 = self.classifier1(fea_egnn1).squeeze(-1)  # student1
         logit2 = self.classifier2(fea_egnn2).squeeze(-1)  # student2
         logit3 = self.classifier3(fea_egnn3).squeeze(-1)  # teacher 
 
-         
-        # 返回所有分类结果和特征表示，用于自蒸馏
+
         return [logit3, logit2, logit1], [fea_egnn3, middle_proj, shallow_proj]
         #return [logit2, logit1], [fea_egnn2, middle_proj]
 

@@ -184,7 +184,6 @@ def def_atom_features():
 
     return atom_features
 
-#专门用于存储从PDB文件中提取的数据
 def get_pdb_DF(file_path):
     atom_fea_dict = def_atom_features()
     res_dict = {'GLY': 'G', 'ALA': 'A', 'VAL': 'V', 'ILE': 'I', 'LEU': 'L', 'PHE': 'F', 'PRO': 'P', 'MET': 'M',
@@ -246,15 +245,13 @@ def cal_PDBDF(seqlist, PDB_chain_dir, PDB_DF_dir):
         os.mkdir(PDB_DF_dir)
 
     for seq_id in tqdm(seqlist):
-        #读取pdb文件
         file_path = PDB_chain_dir + '/{}.pdb'.format(seq_id)
         with open(file_path, 'r') as f:
             text = f.readlines()
-            #检测是否为空
+           
         if len(text) == 1:
             print('ERROR: PDB {} is empty.'.format(seq_id))
-        
-        #不为空则新建DF文件
+   
         if not os.path.exists(PDB_DF_dir + '/{}.csv.pkl'.format(seq_id)):
             try:
                 pdb_DF, res_id_list = get_pdb_DF(file_path)
@@ -346,10 +343,9 @@ def cal_PSSM(ligand, seq_list, pssm_dir, feature_dir):
             #     if fin_data[i] == '\n':
             #         pssm_end_line = i
             #         break
-            pssm_end_line = len(fin_data)  # 默认设为文件的总行数
-            # 查找 PSSM 数据的结束行
+            pssm_end_line = len(fin_data)  
             for i in range(pssm_begin_line, pssm_end_line):
-                if fin_data[i].strip() == '':  # 如果找到了空行
+                if fin_data[i].strip() == '': 
                     pssm_end_line = i
                     break
             feature = np.zeros([(pssm_end_line - pssm_begin_line), 20])
@@ -503,19 +499,18 @@ def PDBResidueFeature(seqlist, PDB_DF_dir, feature_dir, ligand, residue_feature_
                 # print(fea_ii.shape)
                 residue_feas.append(fea_ii)
 
-        # 处理不同特征的形状以确保拼接成功
-        # 确定目标维度
+
         target_shape = max(arr.shape[0] for arr in residue_feas if isinstance(arr, np.ndarray))
 
         resized_arrays = []
         for arr in residue_feas:
             if isinstance(arr, np.ndarray):
-                # 如果数组的行数小于目标行数，进行填充
+                
                 if arr.shape[0] < target_shape:
-                    padding = np.zeros((target_shape - arr.shape[0], arr.shape[1]))  # 用零填充
+                    padding = np.zeros((target_shape - arr.shape[0], arr.shape[1]))  
                     resized_arrays.append(np.vstack((arr, padding)))
                 elif arr.shape[0] > target_shape:
-                    # 如果数组的行数多于目标行数，进行裁剪
+                   
                     resized_arrays.append(arr[:target_shape])
                 else:
                     resized_arrays.append(arr)
@@ -562,7 +557,6 @@ def tv_split(train_list, seed):
     train_list = train_list[int(len(train_list) * 0.2):]
     return train_list, valid_list
 
-#统计并显示训练集、验证集和测试集中序列的数量、残基数量、正样本数量、负样本数量，以及正负样本的比例
 def StatisticsSampleNum( test_list, seqanno):
     def sub(seqlist, seqanno):
         pos_num_all = 0
@@ -615,22 +609,19 @@ if __name__ == '__main__':
     testset_dict = {'PDNA': 'DNA_Test_181.txt',
                     }
     # use native pdb files
-    Dataset_dir = '/home/duying/EGPDI/data'
+    Dataset_dir = '/home/duying/TDEGNN/data'
     # use predicted pdb files
     PDB_chain_dir = Dataset_dir + '/PDB'
-    #测试集文件：DNA_Test_181.txt
     testset_anno = Dataset_dir + '/{}'.format(testset_dict[ligand])
 
     seqanno = {}
     test_list = []
     
-    # 如果配体是DNA或者RNA
     if ligand in ['PDNA', 'PRNA']:
         with open(testset_anno, 'r') as f:
             test_text = f.readlines()
         if testset_anno:
             for i in range(0, len(test_text), 3):
-                # 提取 id 行，去掉开头的 '>'
                 query_id = test_text[i].strip()[1:]
                 query_seq = test_text[i + 1].strip()
                 query_anno = test_text[i + 2].strip()
@@ -641,19 +632,15 @@ if __name__ == '__main__':
     else:
         print("cannot find ligand!")
 
-    # 统计各种数据
     StatisticsSampleNum( test_list, seqanno)
     
-    # 建立一个文件夹放 DF 文件夹
     PDB_DF_dir = Dataset_dir + '/PDB_DF'
     Dataset_dir_181 = Dataset_dir + '/dataset_dir_181'
-    # 数据集 id 合集
     seqlist = test_list
 
     print('1.Extract the PDB information.')
     cal_PDBDF(seqlist, PDB_chain_dir, PDB_DF_dir)
     print('2.calculate the pseudo positions.')
-    # psepos:核心原子
     cal_Psepos(seqlist, PDB_DF_dir, Dataset_dir, psepos, ligand, seqanno)
     print('3.calculate the residue features.')
     if 'AF' in feature_list:
@@ -662,11 +649,9 @@ if __name__ == '__main__':
     else:
         atomfea = False
 
-    # 处理各种特征（在运行PSSM和DSSP之前需要先准备好.dssp和.pssm文件）
     cal_PSSM(ligand, seqlist, Dataset_dir + '/PSSM', Dataset_dir)
     # cal_HMM(ligand, seqlist, Dataset_dir + '/HMM', Dataset_dir)
     cal_DSSP(ligand, seqlist, Dataset_dir + '/SS', Dataset_dir)
-    # 处理原子特征
     PDBResidueFeature(seqlist, PDB_DF_dir, Dataset_dir_181, ligand, feature_list, feature_combine, atomfea)
 
     root_dir = Dataset_dir_181 + '/' + ligand + '_{}_dist{}_{}'.format(psepos, dist, feature_combine)

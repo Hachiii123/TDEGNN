@@ -12,38 +12,19 @@ th = 17
 def parse_residue_coordinates(pdb_file_path):
     parser = PDBParser(PERMISSIVE=1)
     structure = parser.get_structure('protein', pdb_file_path)
-    model = structure[0]  # 选择第一个模型
+    model = structure[0] 
     residues = []
 
     for chain in model:
         for residue in chain:
-            if residue.get_id()[0] != ' ':  # 跳过非标准残基
+            if residue.get_id()[0] != ' ': 
                 continue
-            # 获取 CA 原子的坐标
             if 'CA' in residue:
                 residues.append(residue['CA'].get_coord())
 
     return np.array(residues)
 
 
-def create_dis_matrix_by_pdb(pdb_file_path):
-    # 从 PDB 文件中解析残基坐标
-    residues_array = parse_residue_coordinates(pdb_file_path)
-
-    num_node = len(residues_array)
-    distance_matrix = np.zeros((num_node, num_node))
-
-    # 计算残基之间的欧氏距离
-    distances = np.linalg.norm(residues_array[:, np.newaxis, :] - residues_array[np.newaxis, :, :], axis=-1)
-    distance_matrix[np.triu_indices(num_node, k=1)] = distances[np.triu_indices(num_node, k=1)]
-    distance_matrix += distance_matrix.T  # 无向图，所以距离矩阵是对称的
-
-    return distance_matrix
-
-
-
-
-# test_181_final.py中实际调用的
 def create_dis_matrix(dis_path,Query_ids):
     dis_load=open(dis_path,'rb')
     dis_residue=pickle.load(dis_load)
@@ -62,8 +43,6 @@ def create_dis_matrix(dis_path,Query_ids):
         distance_matrixs.append(distance_matrix)
 
     return distance_matrixs
-
-
 
 
 
@@ -122,18 +101,17 @@ def get_edge_attr_test(pro_id,th,distance_matrixs):
 
 
 # 计算edge的时候放出来，train的时候注释掉
-root_dir = '/home/duying/EGPDI/data/'
+root_dir = '/home/duying/TDEGNN/data/'
 test_path = root_dir + 'DNA_Test_181.txt'
 
 
-pdb_folder_path = '/home/duying/EGPDI/data/AF3PDB/'
+pdb_folder_path = '/home/duying/TDEGNN/data/AF3PDB/'
 
 
 dis_path= root_dir + 'AF3/test181/PDNA_psepos_SC.pkl'
 query_ids = []
 
 
-# 读取 PDB ID
 # test_path/train_path
 with open(test_path, 'r') as f:
     text = f.readlines()
@@ -144,24 +122,20 @@ with open(test_path, 'r') as f:
 print("query_ids 长度：", len(query_ids))
 
 
-# 计算距离矩阵
-# distance_matrixs=create_dis_matrix_by_pdb(pdb_folder_path)
 distance_matrixs=create_dis_matrix(dis_path,query_ids)
 
-
-# 遍历训练集中每个蛋白质，计算边的特征:get_edge_attr_test/get_edge_attr_train
 efeats = []
 for pro_id in range(len(query_ids)):
     egde_feats = get_edge_attr_test(pro_id,th,distance_matrixs)
     efeats.append(egde_feats)
     print("正在计算")
 
-#save_edgefeats_path = '/home/duying/EGPDI/data/dataset_dir_181/Test_181/edge_features/EdgeFeats_predicted_SC_17_181.pkl'
-save_edgefeats_path = '/home/duying/EGPDI/data/AF3_Edge_feat/test_181/EdgeFeats_predicted_SC_17_181.pkl'
+#save_edgefeats_path = '/home/duying/TDEGNN/data/dataset_dir_181/Test_181/edge_features/EdgeFeats_predicted_SC_17_181.pkl'
+save_edgefeats_path = '/home/duying/TDEGNN/data/AF3_Edge_feat/test_181/EdgeFeats_predicted_SC_17_181.pkl'
 
 
 if not os.path.exists(save_edgefeats_path):
-    os.makedirs("/home/duying/EGPDI/data/AF3_Edge_feat/test_181")
+    os.makedirs("/home/duying/TDEGNN/data/AF3_Edge_feat/test_181")
     with open(save_edgefeats_path, 'wb') as f:
         pickle.dump(efeats, f)  
         print("已保存至：" + save_edgefeats_path)

@@ -27,10 +27,10 @@ th=17
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_path", type=str, default='/home/duying/EGPDI/data/')
-#parser.add_argument("--edgefeats_path", type=str, default='/home/duying/EGPDI/data/AF2_Edge_feat/test_181/EdgeFeats_predicted_SC_17_181.pkl')
-parser.add_argument("--edgefeats_path", type=str, default='/home/duying/EGPDI/data/AF3_Edge_feat/test_181/EdgeFeats_predicted_SC_17_181.pkl')
-parser.add_argument("--model_path", type=str, default='/home/duying/EGPDI/models/')
+parser.add_argument("--dataset_path", type=str, default='/home/duying/TDEGNN/data/')
+#parser.add_argument("--edgefeats_path", type=str, default='/home/duying/TDEGNN/data/AF2_Edge_feat/test_181/EdgeFeats_predicted_SC_17_181.pkl')
+parser.add_argument("--edgefeats_path", type=str, default='/home/duying/TDEGNN/data/AF3_Edge_feat/test_181/EdgeFeats_predicted_SC_17_181.pkl')
+parser.add_argument("--model_path", type=str, default='/home/duying/TDEGNN/models/')
 args = parser.parse_args()
 
 features = []
@@ -170,8 +170,8 @@ def evaluate(model,data_loader):
     all_true = []
     all_pred = []
     
-    all_raw_features = []      # 原始输入特征
-    all_latent_features = []   # 模型提取的潜在特征（如Layer3输出）
+    all_raw_features = []      
+    all_latent_features = []   
 
     for label_batch, node_features_batch, graph_batch,efeat_batch,adj_batch,coors_batch in data_loader:
         with torch.no_grad():
@@ -194,21 +194,17 @@ def evaluate(model,data_loader):
             #outputs = model(graph_batch, node_features_batch, coors_batch, adj_batch, efeat_batch)
             #logits = outputs['logits'][0]
             
-            
             probs = torch.sigmoid(logits)
         
             loss = model.criterion(logits,y_true)
             epoch_loss += loss.item()
             n_samples += len(y_true)
 
-            # 保存预测结果
             all_true.extend(y_true.cpu().numpy())
             all_pred.extend(probs.cpu().numpy())
             
-            
-            # === 关键新增：保存特征 ===
-            #all_raw_features.extend(node_features_batch.cpu().numpy())  # 原始输入
-            #all_latent_features.extend(latent_feats[-1].cpu().numpy())  # 第3层EGNN输出（通常 latent_feats[-1]）
+            #all_raw_features.extend(node_features_batch.cpu().numpy())
+            #all_latent_features.extend(latent_feats[-1].cpu().numpy())  
 
     
     
@@ -228,7 +224,6 @@ def analysis(y_true,y_pred,best_threshold = None):
             binary_pred = [1 if pred >= threshold else 0 for pred in y_pred]
             binary_true = y_true
             mcc = matthews_corrcoef(binary_true, binary_pred)
-            # 以MCC为参照设置best_threshold
             if mcc > best_mcc:
                 best_mcc = mcc
                 best_threshold = threshold
@@ -236,7 +231,6 @@ def analysis(y_true,y_pred,best_threshold = None):
     print('best_threshold',best_threshold)
     binary_pred = [1.0 if pred >= best_threshold else 0.0 for pred in y_pred]
 
-    # 计算混淆矩阵
     tn, fp, fn, tp = confusion_matrix(y_true, binary_pred).ravel()
     spe = tn / (tn + fp) if (tn + fp) > 0 else 0
 
@@ -289,9 +283,9 @@ def test_181(Model_Path, save_features=True):
     test_results = analysis(test_true, test_pred)
     
     if save_features:
-        np.save("X_all.npy", np.array(X_raw))  # 原始特征
-        np.save("test_layer3_features.npy", np.array(X_latent))  # 模型特征
-        np.save("test_true_labels.npy", np.array(test_true))  # 标签
+        np.save("X_all.npy", np.array(X_raw))  
+        np.save("test_layer3_features.npy", np.array(X_latent))  
+        np.save("test_true_labels.npy", np.array(test_true))  
 
     return test_results, test_true, test_pred
 
